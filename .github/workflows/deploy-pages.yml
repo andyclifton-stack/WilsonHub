@@ -38,6 +38,9 @@ jobs:
       - run: npm run validate
       - run: npm test
       - run: npm run build
+      - name: Add deployment verification marker
+        shell: bash
+        run: printf '{"sha":"%s","runId":"%s"}\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" > dist/deployment.json
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -60,8 +63,8 @@ jobs:
             const artifactName = 'github-pages'
             const timeoutMs = 30 * 60 * 1000
             const pollingIntervalMs = 5000
+            const publicationVerificationMs = 5 * 60 * 1000
             const terminalFailures = new Map([
-              ['deployment_failed', 'Deployment failed; try again later.'],
               ['deployment_perms_error', 'Deployment failed because of file permissions.'],
               ['deployment_content_failed', 'Deployment content was rejected.'],
               ['deployment_cancelled', 'Deployment was cancelled.'],
@@ -102,6 +105,28 @@ jobs:
               if (status.status === 'succeed') {
                 core.info('Reported success!')
                 return
+              }
+              if (status.status === 'deployment_failed') {
+                core.warning('Pages reported deployment_failed; verifying whether the exact artifact was published.')
+                const markerUrl = new URL('deployment.json', deployment.page_url)
+                const verificationDeadline = Date.now() + publicationVerificationMs
+                while (Date.now() < verificationDeadline) {
+                  try {
+                    markerUrl.search = `run=${context.runId}&check=${Date.now()}`
+                    const response = await fetch(markerUrl, { redirect: 'follow', cache: 'no-store' })
+                    if (response.ok) {
+                      const marker = await response.json()
+                      if (marker.sha === context.sha) {
+                        core.info(`Verified published commit ${context.sha} at ${markerUrl.origin}${markerUrl.pathname}.`)
+                        return
+                      }
+                    }
+                  } catch (error) {
+                    core.debug(`Publication verification is not ready: ${error.message}`)
+                  }
+                  await new Promise(resolve => setTimeout(resolve, pollingIntervalMs))
+                }
+                throw new Error('Pages reported deployment_failed and the live commit marker did not match.')
               }
               if (terminalFailures.has(status.status)) {
                 throw new Error(terminalFailures.get(status.status))
