@@ -1,0 +1,22 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://andyclifton-stack.github.io/WilsonHub/schemas/record.schema.json",
+  "type":"object",
+  "required":["id","title","status","confidence","region","relevance","created","firstSeen","lastChecked","lastUpdated","archived","superseded","sources"],
+  "properties":{
+    "id":{"type":"string","pattern":"^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+    "title":{"type":"string","minLength":1},
+    "status":{"enum":["confirmed","pending","open","resolved","reference","monitoring","archived"]},
+    "confidence":{"enum":["high","medium","low"]},
+    "region":{"enum":["UK","Global"]},
+    "relevance":{"enum":["primary","occasional","general"]},
+    "created":{"$ref":"#/$defs/date"},"firstSeen":{"$ref":"#/$defs/date"},"lastChecked":{"$ref":"#/$defs/date"},"lastUpdated":{"$ref":"#/$defs/date"},
+    "archived":{"type":"boolean"},"superseded":{"type":"boolean"},
+    "sources":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "related":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "applicableVehicle":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "applicableSoftware":{"type":"array","items":{"type":"string"},"uniqueItems":true}
+  },
+  "$defs":{"date":{"type":"string","pattern":"^\\d{4}-\\d{2}-\\d{2}$"}},
+  "additionalProperties":true
+}
